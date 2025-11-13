@@ -20,7 +20,7 @@ exec(char *path, char **argv)
   if((ip = namei(path)) == 0)
     return -1;
   ilock(ip);
-  pgdir = 0; //New page table for the process
+  pgdir = 0;
 
   // Check ELF header
   if(readi(ip, (char*)&elf, 0, sizeof(elf)) < sizeof(elf))
@@ -28,37 +28,33 @@ exec(char *path, char **argv)
   if(elf.magic != ELF_MAGIC)
     goto bad;
 
-  //If it can't create a new page table, stop trying to execute the process
   if((pgdir = setupkvm()) == 0)
     goto bad;
 
   // Load program into memory.
-  //Go through the executable file and load each code instruction into memory
-  sz = PGSIZE; //Start in VPN1 (is not 0 because the first page will not be valid)
   //sz = 0;
+  sz = PGSIZE; //Start in VPN1 so that VPN0 is invalid memory
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
-    if(ph.type != ELF_PROG_LOAD) //If the instruction is not the right type, skip it
+    if(ph.type != ELF_PROG_LOAD)
       continue;
-    if(ph.memsz < ph.filesz) //If there is not enough memory for the instruction, stop trying to execute the process
+    if(ph.memsz < ph.filesz)
       goto bad;
-    if((sz = allocuvm(pgdir, sz, ph.va + ph.memsz)) == 0) //If creating a page table entry failed, stop trying to execute the process
+    if((sz = allocuvm(pgdir, sz, ph.va + ph.memsz)) == 0)
       goto bad;
-    if(loaduvm(pgdir, (char*)ph.va, ip, ph.offset, ph.filesz) < 0) 
+    if(loaduvm(pgdir, (char*)ph.va, ip, ph.offset, ph.filesz) < 0)
       goto bad;
   }
   iunlockput(ip);
   ip = 0;
 
   // Allocate a one-page stack at the next page boundary
-  // Create one page for all of the stack
   sz = PGROUNDUP(sz);
   if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
     goto bad;
 
   // Push argument strings, prepare rest of stack in ustack.
-  // Push main arguments onto the stack
   sp = sz;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
@@ -85,11 +81,11 @@ exec(char *path, char **argv)
       last = s+1;
   safestrcpy(proc->name, last, sizeof(proc->name));
 
-  // Commit to the user image
+  // Commit to the user image.
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
   proc->sz = sz;
-  proc->tf->eip = elf.entry;  // Set the starting point to the main function (or whather is said in the makefile)
+  proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
   switchuvm(proc);
   freevm(oldpgdir);
