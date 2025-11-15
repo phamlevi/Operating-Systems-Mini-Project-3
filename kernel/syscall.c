@@ -7,6 +7,7 @@
 #include "syscall.h"
 #include "sysfunc.h"
 
+
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
 // Arguments on the stack, from the user call to the C
@@ -17,7 +18,9 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if(addr >= p->sz || addr+4 > p->sz)
+  //if(addr >= p->sz || addr + 4 > p->sz)
+  //Check if address is within process size and not extends into USERTOP
+  if(addr >= p->sz || addr + 4 > p->sz || addr + 4 > USERTOP)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -30,12 +33,13 @@ int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
-
-  if(addr >= p->sz)
+  // if(addr >= p->sz)
+  //Check if address is within process size and not extends into USERTOP
+  if(addr >= p->sz || addr >= USERTOP)
     return -1;
   *pp = (char*)addr;
   ep = (char*)p->sz;
-  for(s = *pp; s < ep; s++)
+  for(s = *pp; s < ep && s < (char*)USERTOP; s++) // // Added check for USERTOP in loop condition
     if(*s == 0)
       return s - *pp;
   return -1;
@@ -58,7 +62,10 @@ argptr(int n, char **pp, int size)
   
   if(argint(n, &i) < 0)
     return -1;
-  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
+  if( (uint)i < PGSIZE || //Check for null page (No need to check in fetchint or fetchstr)
+    (uint)i >= proc->sz || //Check if the addr is within process size
+    (uint)i+size > proc->sz || //Check if addr + size is within process size
+    (uint)i + size > USERTOP) //Check if addr + size extend into USERTOP
     return -1;
   *pp = (char*)i;
   return 0;

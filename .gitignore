@@ -1,22 +1,7 @@
 # Compiled binaries and object files
 *.o
 *.d
-init
-sh
-cat
-echo
-forktest
-grep
-kill
-ln
-ls
-mkdir
-mknod
-openfile
-stressfs
-usertests
-wc
-zombie
+
 
 # Temporary files and build artifacts
 *.img # Disk images if generated
