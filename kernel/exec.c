@@ -32,8 +32,8 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  //sz = 0;
-  sz = PGSIZE; //Start in VPN1 so that VPN0 is invalid memory
+  sz = 0;
+  //sz = PGSIZE; //Start in VPN1 so that VPN0 is invalid memory
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -51,7 +51,7 @@ exec(char *path, char **argv)
 
   // Allocate a one-page stack at the next page boundary
   sz = PGROUNDUP(sz);
-  if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
+  if((sz = allocuvm(pgdir, sz, sz + 2*PGSIZE)) == 0)
     goto bad;
 
   // Push argument strings, prepare rest of stack in ustack.

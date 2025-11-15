@@ -7,7 +7,6 @@
 #include "syscall.h"
 #include "sysfunc.h"
 
-
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
 // Arguments on the stack, from the user call to the C
@@ -18,8 +17,11 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  //Make sure we will not inside a null page, not above process size, or cross USERTOP
-  if(addr < PGSIZE || addr >= p->sz || addr+4 > p->sz)
+  if(addr < PGSIZE)
+    return -1;
+  if(addr+4 < PGSIZE)
+    return -1;
+  if(addr >= p->sz || addr+4 > p->sz)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -33,11 +35,14 @@ fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
 
-  if(addr < PGSIZE || addr >= p->sz )
+  if(addr < PGSIZE)
+    return -1;
+
+  if(addr >= p->sz)
     return -1;
   *pp = (char*)addr;
   ep = (char*)p->sz;
-  for(s = *pp; s < ep && (uint)s < USERTOP; s++)
+  for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
   return -1;
@@ -57,10 +62,20 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-  
+
   if(argint(n, &i) < 0)
     return -1;
-  if((uint)i == 0 || (uint)i < PGSIZE || (uint)i >= proc->sz || (uint)i+size > proc->sz )
+
+  if((uint)i < PGSIZE)
+    return -1;
+
+  if(size > 0 && (uint)i+size < (uint)i)
+    return -1;
+
+  if(size > 0 && (uint)i+size < PGSIZE)
+    return -1;
+
+  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
     return -1;
   *pp = (char*)i;
   return 0;
